@@ -26,17 +26,15 @@ const CardContent = () => {
     setVisible(true)
   }
 
-
-  const onSubmit = (values: {
-    folderPath: string
-    folderName: string
+  const onSubmit = async (values: {
+    folderPath?: string
+    folderName?: string,
+    cutTime?: number
   }) => {
+    setLoading(true)
     try {
-      setLoading(true)
-      window.api.cutVideo(pathVideos, values.folderPath as string, values.folderName).then((res: any) => {
-        console.log(res);
-        message.success('Đã cắt xong video')
-      })
+      await window.api.cutVideo(pathVideos, values.folderPath as string, values.folderName, values.cutTime)
+      message.success('Đã cắt xong video');
     } catch (error) {
       console.log(error);
       message.error('Có lỗi xảy ra')
@@ -75,8 +73,9 @@ const CardContent = () => {
         onCancel={() => setVisible(false)}
         destroyOnClose
         onOk={form.submit}
-        okButtonProps={{ loading }}
+        // okButtonProps={{ loading }}
         width={450}
+        confirmLoading={loading}
       >
         <Form
           form={form}
@@ -93,6 +92,20 @@ const CardContent = () => {
           <Form.Item
             label='Chọn tên folder'
             name='folderName'
+          >
+            <Input />
+          </Form.Item>
+          <Form.Item
+            label='Nhập Số phút'
+            name='cutTime'
+            // check value is number
+            rules={[
+            {
+              pattern: /^[0-9]*$/,
+              message: 'Vui lòng nhập số'
+            }
+            ]}
+            tooltip='Nhập số phút cần chia nhỏ trong video, mặc định là 60 phút'
           >
             <Input />
           </Form.Item>

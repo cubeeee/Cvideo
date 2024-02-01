@@ -1,13 +1,12 @@
-import { dialog, ipcMain, app, BrowserWindow } from 'electron'
-import fs from 'fs'
-import path from 'path'
-import ffmpeg from 'fluent-ffmpeg'
-import ffprobePath from 'ffprobe-static';
-import ffmpegPath from 'ffmpeg-static';
 import dayjs from 'dayjs';
-import { getRandomDuration, parseTime } from './utils';
+import { BrowserWindow, Notification, app, dialog, ipcMain } from 'electron';
+import ffmpegPath from 'ffmpeg-static';
+import ffprobePath from 'ffprobe-static';
+import ffmpeg from 'fluent-ffmpeg';
+import fs from 'fs';
+import path from 'path';
+import { parseTime } from './utils';
 
-console.log('ffmpegPath', ffmpegPath);
 ffmpeg.setFfmpegPath(ffmpegPath as string);
 ffmpeg.setFfprobePath(ffprobePath.path);
 
@@ -59,16 +58,14 @@ ipcMain.handle('open-folder-dialog', () => {
 })
 
 // viết hàm lấy các file trong thư mục
-ipcMain.handle('check-folder', async (event, folderPath) => {
+ipcMain.handle('check-folder', async (_, folderPath) => {
   try {
     if (!fs.existsSync(folderPath)) {
       throw new Error('Đường dẫn không tồn tại')
     }
     const files = fs.readdirSync(folderPath)
-    console.log('files', files);
     const result = files.filter((file) => {
       const ext = path.extname(file)
-      console.log('ext', ext);
       return ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.ts'].includes(ext)
     })
     if (!result.length) {
@@ -76,66 +73,23 @@ ipcMain.handle('check-folder', async (event, folderPath) => {
     }
     return Promise.resolve(result)
   } catch (error) {
-    console.log(error)
+    return Promise.reject(error)
   }
 })
 
-// ipcMain.handle('cut-video', async (event, { pathVideos, folderPath, folderName }: { pathVideos: string[], folderPath: string, folderName: string }) => {
-//   try {
-//     const command = ffmpeg()
-//     // get duration video
-//     console.log('pathVideos', pathVideos);
-//     const duration = await new Promise((resolve, reject) => {
-//       ffmpeg.ffprobe(pathVideos[0], (err, metadata) => {
-//         if (err) {
-//           reject(err)
-//         }
-//         resolve(metadata?.format?.duration)
-//       })
-//     })
-//     console.log('duration', duration);
-//     // cut video
-//     pathVideos.forEach((pathVideo, index) => {
-//       const name = path.basename(pathVideo)
-//       const ext = path.extname(pathVideo)
-//       const nameVideo = name.replace(ext, '')
-//       const newPath = path.join(`C:\Users\admin\Downloads\video`, 'cut', `${nameVideo}-${index + 1}${ext}`)
-//       command.input(pathVideo)
-//       command.outputOptions(['-c copy', '-t 00:00:10'])
-//       command.save(newPath)
-//     })
-//     await new Promise<void>((resolve, reject) => {
-//       command.on('end', () => {
-//         resolve()
-//       })
-//       command.on('error', (err) => {
-//         reject(err)
-//       })
-//       command.run()
-//     })
-//     return Promise.resolve()
-//   } catch (error) {
-//     console.log(error);
-//   }
-// })
 
-ipcMain.handle('cut-video', async (event, { pathVideos, folderPath, folderName }: { pathVideos: string[], folderPath: string, folderName: string }) => {
+ipcMain.handle('cut-video', async (_, { pathVideos, folderPath, folderName, cutTime }: { pathVideos: string[], folderPath: string, folderName: string, cutTime: number }) => {
   try {
-    console.log('pathVideos', pathVideos);
     const dateNow = dayjs().format('YYYY-MM-DD-HH-mm-ss');
-    const outputFolder = path.join(folderPath?.length > 0 ? folderPath[0] : `C:\\Users\\admin\\Downloads`, folderName ? `${folderName}-${dateNow}` : `cut-${dateNow}`);
-    if (!fs.existsSync(outputFolder)) {
-      fs.mkdirSync(outputFolder);
-    }
-
-    // Loop through each video file
     for (let index = 0; index < pathVideos.length; index++) {
-
       const pathVideo = pathVideos[index];
       const name = path.basename(pathVideo);
       const ext = path.extname(pathVideo);
       const nameVideo = name.replace(ext, '');
-      // Use fluent-ffmpeg to cut the video
+      const outputFolder = path.join(folderPath?.length > 0 ? folderPath[0] : `C:\\Users\\admin\\Downloads`, folderName ? `${folderName}-${dateNow}` : `${nameVideo}-${dateNow}`);
+      if (!fs.existsSync(outputFolder)) {
+        fs.mkdirSync(outputFolder);
+      }
       const duration = await new Promise((resolve, reject) => {
         ffmpeg.ffprobe(pathVideo, (err, metadata) => {
           if (err) {
@@ -145,15 +99,15 @@ ipcMain.handle('cut-video', async (event, { pathVideos, folderPath, folderName }
         })
       })
       const durationLimit = duration as number;
-      const minute = 10;
-      const totalChunks = Math.ceil(Number(durationLimit) / 60 / minute);
-      for (let index = 0; index < totalChunks; index++) {
-        const randomDuration = getRandomDuration(minute * 60, Math.min(durationLimit, (totalChunks - index) * minute * 60));
+      const time = cutTime ? (cutTime * 60) : 3600;
+      const step = Math.ceil(durationLimit / time);
+      const durationAverage = durationLimit / step;
+      for (let index = 0; index < step; index++) {  
         const newPath = path.join(outputFolder, `${nameVideo}-${index + 1}${ext}`);
         await new Promise<void>((resolve, reject) => {
           ffmpeg(pathVideo, { logger: console })
-            .inputOptions([`-ss ${parseTime(index * minute * 60)}`])
-            .outputOptions(['-c', 'copy', '-t', parseTime(randomDuration)])
+            .inputOptions([`-ss ${parseTime(index * durationAverage)}`])
+            .outputOptions(['-c', 'copy', '-t', parseTime(durationAverage)])
             .on('end', () => {
               resolve();
             })
@@ -164,7 +118,10 @@ ipcMain.handle('cut-video', async (event, { pathVideos, folderPath, folderName }
         });
       }
     }
-
+    new Notification({
+      title: "Thông báo",
+      body: "Cắt video thành công!"
+    }).show()
     return Promise.resolve();
   } catch (error) {
     console.error(error);

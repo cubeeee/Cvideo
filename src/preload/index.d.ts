@@ -11,7 +11,7 @@ declare global {
       openFileDialog: () => Promise<string>,
       checkFolder: (folderPath: string) => Promise<string[]>,
       openFolderDialog: () => Promise<string>,
-      cutVideo: (pathVideos: string[], folderPath?: string, folderName?: string) => Promise<void>
+      cutVideo: (pathVideos: string[], folderPath?: string, folderName?: string, cutTime?: number) => Promise<void>
     }
   }
 }

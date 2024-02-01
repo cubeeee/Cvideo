@@ -24,11 +24,12 @@ const api = {
   checkFolder: async (path: string) => {
     return electronAPI.ipcRenderer.invoke('check-folder', path)
   },
-  cutVideo: async (pathVideos: string[], folderPath?: string, folderName?: string) => {
+  cutVideo: async (pathVideos: string[], folderPath?: string, folderName?: string, cutTime?: number) => {
     return electronAPI.ipcRenderer.invoke('cut-video', {
       pathVideos,
       folderPath,
-      folderName
+      folderName,
+      cutTime,
     })
   }
 }
