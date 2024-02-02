@@ -1,15 +1,11 @@
 import dayjs from 'dayjs';
 import { BrowserWindow, Notification, app, dialog, ipcMain } from 'electron';
-import ffmpegPath from 'ffmpeg-static';
-import ffprobePath from 'ffprobe-static';
 import ffmpeg from 'fluent-ffmpeg';
-import fs from 'fs';
-import path from 'path';
-import { parseTime } from './utils';
-
-ffmpeg.setFfmpegPath(ffmpegPath as string);
-ffmpeg.setFfprobePath(ffprobePath.path);
-
+import { parseTime, getFFmpegPath } from './utils';
+import fs from 'fs'
+import { decompress } from './admZip'
+import path from 'path'
+import { downloadFileS3 } from './s3'
 
 // close app
 ipcMain.handle('close-app', () => {
@@ -34,6 +30,33 @@ ipcMain.handle('maximize-app', () => {
   }
 })
 
+ipcMain.handle('check-resource', async(event) => {
+  const { ffmpegPath, ffprobePath, ffmpegZipPath, ffmpegFolder } = getFFmpegPath();
+  if (!fs.existsSync(ffmpegFolder)) {
+    fs.mkdirSync(ffmpegFolder);
+  }
+  if (fs.existsSync(ffmpegPath) && fs.existsSync(ffprobePath)) {
+    new Notification({
+      title: "Thông báo",
+      body: "Tải tài nguyên thành công!"
+    }).show()
+    return Promise.resolve(true);
+  } else {
+    // download ffmpeg
+    await downloadFileS3({
+      fileKey: 'ffmpeg.zip',
+      localPath: ffmpegZipPath
+    })
+    await decompress({
+      inputFile: ffmpegZipPath,
+      outputDir: ffmpegFolder
+    });
+    new Notification({
+      title: "Thông báo",
+      body: "Tải tài nguyên thành công!"
+    }).show()
+  }
+})
 
 ipcMain.handle('open-file-dialog', () => {
   const filePaths = dialog.showOpenDialogSync({
@@ -47,7 +70,6 @@ ipcMain.handle('open-file-dialog', () => {
   })
   return Promise.resolve(filePaths)
 })
-
 ipcMain.handle('open-folder-dialog', () => {
   const folderPath = dialog.showOpenDialogSync({
     title: 'Chọn thư mục chứa video',
@@ -57,7 +79,6 @@ ipcMain.handle('open-folder-dialog', () => {
   return Promise.resolve(folderPath)
 })
 
-// viết hàm lấy các file trong thư mục
 ipcMain.handle('check-folder', async (_, folderPath) => {
   try {
     if (!fs.existsSync(folderPath)) {
@@ -76,10 +97,11 @@ ipcMain.handle('check-folder', async (_, folderPath) => {
     return Promise.reject(error)
   }
 })
-
-
 ipcMain.handle('cut-video', async (_, { pathVideos, folderPath, folderName, cutTime }: { pathVideos: string[], folderPath: string, folderName: string, cutTime: number }) => {
   try {
+    const { ffmpegPath, ffprobePath } = getFFmpegPath();
+    ffmpeg.setFfmpegPath(ffmpegPath);
+    ffmpeg.setFfprobePath(ffprobePath);
     const dateNow = dayjs().format('YYYY-MM-DD-HH-mm-ss');
     for (let index = 0; index < pathVideos.length; index++) {
       const pathVideo = pathVideos[index];

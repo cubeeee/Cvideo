@@ -31,6 +31,9 @@ const api = {
       folderName,
       cutTime,
     })
+  },
+  checkResource: async () => {
+    return electronAPI.ipcRenderer.invoke('check-resource')
   }
 }
 
