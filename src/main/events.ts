@@ -30,7 +30,7 @@ ipcMain.handle('maximize-app', () => {
   }
 })
 
-ipcMain.handle('check-resource', async(event) => {
+ipcMain.handle('check-resource', async() => {
   const { ffmpegPath, ffprobePath, ffmpegZipPath, ffmpegFolder } = getFFmpegPath();
   if (!fs.existsSync(ffmpegFolder)) {
     fs.mkdirSync(ffmpegFolder);
@@ -55,6 +55,7 @@ ipcMain.handle('check-resource', async(event) => {
       title: "Thông báo",
       body: "Tải tài nguyên thành công!"
     }).show()
+    return Promise.resolve(true);
   }
 })
 

@@ -35,9 +35,9 @@ const CardContent = () => {
     try {
       await window.api.cutVideo(pathVideos, values.folderPath as string, values.folderName, values.cutTime)
       message.success('Đã cắt xong video');
-    } catch (error) {
+    } catch (error: any) {
       console.log(error);
-      message.error('Có lỗi xảy ra')
+      message.error(error?.message || error || 'Có lỗi xảy ra')
     } finally {
       setLoading(false)
     }
