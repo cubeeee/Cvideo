@@ -33,7 +33,9 @@ ipcMain.handle('maximize-app', () => {
 ipcMain.handle('check-resource', async() => {
   const { ffmpegPath, ffprobePath, ffmpegZipPath, ffmpegFolder } = getFFmpegPath();
   if (!fs.existsSync(ffmpegFolder)) {
-    fs.mkdirSync(ffmpegFolder);
+    fs.mkdirSync(ffmpegFolder, {
+      recursive: true
+    });
   }
   if (fs.existsSync(ffmpegPath) && fs.existsSync(ffprobePath)) {
     new Notification({
@@ -42,6 +44,10 @@ ipcMain.handle('check-resource', async() => {
     }).show()
     return Promise.resolve(true);
   } else {
+    new Notification({
+      title: "Thông báo",
+      body: "Đang tải tài nguyên, vui lòng đợi trong giây lát"
+    }).show()
     // download ffmpeg
     await downloadFileS3({
       fileKey: 'ffmpeg.zip',
