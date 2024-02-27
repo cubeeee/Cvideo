@@ -98,7 +98,6 @@ const CardContent = () => {
           <Form.Item
             label='Nhập Số phút'
             name='cutTime'
-            // check value is number
             rules={[
             {
               pattern: /^[0-9]*$/,
